@@ -64,10 +64,18 @@ func (opts *CreateSubCommand) run(input cli.Input) error {
 
 	jsonValue, _ := json.Marshal(values)
 
-	// Portforward to the fission router
-	localRouterPort, err := util.SetupPortForward(input.Context(), opts.Client(), util.GetFissionNamespace(), "application=fission-router")
-	if err != nil {
-		return err
+
+	URL := ""
+	routerURL := os.Getenv("FISSION_ROUTER")
+	if len(routerURL) != 0 {
+		URL = "http://" + routerURL
+	} else {
+		// Portforward to the fission router
+		localRouterPort, err := util.SetupPortForward(input.Context(), opts.Client(), util.GetFissionNamespace(), "application=fission-router")
+		if err != nil {
+			return err
+		}
+		URL = "http://127.0.0.1:" + localRouterPort
 	}
 
 	authURI, _ := os.LookupEnv("FISSION_AUTH_URI")
@@ -81,7 +89,7 @@ func (opts *CreateSubCommand) run(input cli.Input) error {
 	}
 
 	relativeURL, _ := url.Parse(authURI)
-	serverURL, _ := url.Parse("http://127.0.0.1:" + localRouterPort)
+	serverURL, _ := url.Parse(URL)
 	authAuthenticatorUrl := serverURL.ResolveReference(relativeURL)
 
 	resp, err := http.Post(authAuthenticatorUrl.String(), "application/json", bytes.NewBuffer(jsonValue))
