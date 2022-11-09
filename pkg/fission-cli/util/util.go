@@ -402,17 +402,28 @@ func ApplyLabelsAndAnnotations(input cli.Input, objectMeta *metav1.ObjectMeta) e
 }
 
 func GetStorageURL(ctx context.Context, client cmd.Client) (*url.URL, error) {
-	storageLocalPort, err := SetupPortForward(ctx, client, GetFissionNamespace(), "application=fission-storage")
-	if err != nil {
-		return nil, err
-	}
+	storageURL := os.Getenv("FISSION_STORAGE")
+	if len(storageURL) != 0 {
+		console.Verbose(2, "Env FISSION_STORAGE: %v", storageURL)
+		serverURL, err := url.Parse("http://" + storageURL)
+		if err != nil {
+			return nil, err
+		}
 
-	serverURL, err := url.Parse("http://127.0.0.1:" + storageLocalPort)
-	if err != nil {
-		return nil, err
-	}
+		return serverURL, nil
+	} else {
+		storageLocalPort, err := SetupPortForward(ctx, client, GetFissionNamespace(), "application=fission-storage")
+		if err != nil {
+			return nil, err
+		}
 
-	return serverURL, nil
+		serverURL, err := url.Parse("http://127.0.0.1:" + storageLocalPort)
+		if err != nil {
+			return nil, err
+		}
+
+		return serverURL, nil
+	}
 }
 
 // CheckHTTPTriggerDuplicates checks whether the tuple (Method, Host, URL) is duplicate or not.
