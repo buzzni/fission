@@ -60,17 +60,21 @@ func (opts *TestSubCommand) do(input cli.Input) error {
 		Name:      input.String(flagkey.FnName),
 		Namespace: namespace,
 	}
+
+	fnURL := ""
 	routerURL := os.Getenv("FISSION_ROUTER")
 	if len(routerURL) != 0 {
-		console.Warn("The environment variable FISSION_ROUTER is no longer supported for this command")
+		console.Verbose(2, "Env FISSION_ROUTER: %v", routerURL)
+		fnURL = "http://" + routerURL + util.UrlForFunction(m.Name, m.Namespace)
+	} else {
+		// Portforward to the fission router
+		localRouterPort, err := util.SetupPortForward(input.Context(), opts.Client(), util.GetFissionNamespace(), "application=fission-router")
+		if err != nil {
+			return err
+		}
+		fnURL = "http://127.0.0.1:" + localRouterPort + util.UrlForFunction(m.Name, m.Namespace)
 	}
 
-	// Portforward to the fission router
-	localRouterPort, err := util.SetupPortForward(input.Context(), opts.Client(), util.GetFissionNamespace(), "application=fission-router")
-	if err != nil {
-		return err
-	}
-	fnURL := "http://127.0.0.1:" + localRouterPort + util.UrlForFunction(m.Name, m.Namespace)
 	if input.IsSet(flagkey.FnSubPath) {
 		subPath := input.String(flagkey.FnSubPath)
 		if !strings.HasPrefix(subPath, "/") {
